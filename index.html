@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar AC Power Predictor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <meta name="color-scheme" content="light">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <!-- ================= TOP BAR ================= -->
+    <div class="topbar">
+        <div class="brand">
+            <span class="brand-icon">☀️</span>
+            <div>
+                <p class="brand-tag">ML POWER PREDICTION</p>
+                <h1>Solar AC Power Predictor</h1>
+            </div>
+        </div>
+        <p class="subtitle">Adjust the environmental conditions to predict AC power generation.</p>
+    </div>
+
+    <form method="POST" id="predictForm">
+    <div class="grid">
+
+        <!-- ================= LEFT: INPUT PANEL ================= -->
+        <aside class="panel">
+            <h2 class="panel-title">Model Input Parameters</h2>
+
+            <div class="tabs">
+                <button type="button" class="tab active" data-tab="B">Public Weather (Set B)</button>
+                <button type="button" class="tab" data-tab="A">On-Site Sensors (Set A)</button>
+            </div>
+
+            <div class="scenarios">
+                <p class="section-label">Reference Scenarios</p>
+                <div class="scenario-row">
+                    <button type="button" class="chip" data-preset="noon">Solar Noon</button>
+                    <button type="button" class="chip" data-preset="overcast">Overcast</button>
+                    <button type="button" class="chip" data-preset="morning">Morning</button>
+                    <button type="button" class="chip" data-preset="night">Night</button>
+                </div>
+            </div>
+
+            <!-- HOUR -->
+            <div class="field">
+                <div class="field-head">
+                    <span>Hour of Day <small>(24-Hour Cycle)</small></span>
+                    <strong id="hourValue">11</strong>
+                </div>
+                <input type="range" id="hour" name="hour" min="0" max="23" step="1" value="11"
+                       oninput="updateHour(this.value)">
+                <div class="range-labels"><span>00:00</span><span>23:00</span></div>
+            </div>
+
+            <!-- RADIATION -->
+            <div class="field">
+                <div class="field-head">
+                    <span>Shortwave Radiation <small>(W/m²)</small></span>
+                    <strong id="radiationValue">834</strong>
+                </div>
+                <input type="range" id="sw_radiation" name="sw_radiation" min="0" max="1200" step="1" value="834"
+                       oninput="updateValue('radiationValue', this.value, 0)">
+                <div class="range-labels"><span>0</span><span>1200</span></div>
+            </div>
+
+            <!-- TEMPERATURE -->
+            <div class="field">
+                <div class="field-head">
+                    <span>2m Air Temperature <small>(°C)</small></span>
+                    <strong id="tempValue">36.0</strong>
+                </div>
+                <input type="range" id="temp_2m" name="temp_2m" min="-10" max="50" step="0.1" value="36.0"
+                       oninput="updateValue('tempValue', this.value, 1)">
+                <div class="range-labels"><span>-10°C</span><span>50°C</span></div>
+            </div>
+
+            <!-- CLOUD COVER -->
+            <div class="field">
+                <div class="field-head">
+                    <span>Cloud Cover <small>(%)</small></span>
+                    <strong id="cloudValue">5</strong>
+                </div>
+                <input type="range" id="cloud_cover" name="cloud_cover" min="0" max="100" step="1" value="5"
+                       oninput="updateValue('cloudValue', this.value, 0)">
+                <div class="range-labels"><span>Clear</span><span>100%</span></div>
+            </div>
+
+            <button type="submit" class="predict-btn">⚡ Predict AC Power</button>
+        </aside>
+
+        <!-- ================= RIGHT: RESULTS ================= -->
+        <main class="results">
+
+            <div class="stat-row">
+                <div class="stat-card highlight">
+                    <p class="stat-label">Predicted AC Power</p>
+                    <div class="stat-value">
+                        {% if prediction is not none %}<span id="predictedKw" data-raw="{{ prediction|float }}">{{ prediction }}</span>{% else %}—{% endif %}<span>kW</span>
+                    </div>
+                    <p class="stat-sub">
+                        {% if prediction is not none %}
+                            <span id="predictedMw" data-raw="{{ prediction|float / 1000 }}">{{ (prediction|float / 1000) | round(2) }}</span> MW Active Generation
+                        {% else %}Run a prediction to see output{% endif %}
+                    </p>
+                </div>
+
+                <div class="stat-card">
+                    <p class="stat-label">Capacity Utilization</p>
+                    <div class="stat-value">
+                        {% if prediction is not none %}
+                            {% set peak = (peak_mw|default(25.0))|float %}
+                            {% set mw = prediction|float / 1000 %}
+                            {{ (mw / peak * 100) | round(1) }}
+                        {% else %}—{% endif %}<span>%</span>
+                    </div>
+                    <p class="stat-sub">Ref. Peak {{ peak_mw|default('25.0') }} MW</p>
+                </div>
+
+                <div class="stat-card">
+                    <p class="stat-label">Model Configuration</p>
+                    <div class="stat-value small">
+                        <span id="configSet">Set B</span>
+                        <span class="tag-mini" id="configTag">Public</span>
+                    </div>
+                    <p class="stat-sub" id="configSub">Z-Score Standardized</p>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <div class="card-head">
+                    <h3>Estimated Diurnal Generation Profile</h3>
+                    <div class="legend">
+                        <span><i class="dot blue"></i>Hourly Trend</span>
+                        <span><i class="dot amber"></i>Selected Hour Cursor</span>
+                    </div>
+                </div>
+                <canvas id="diurnalChart" height="90"></canvas>
+            </div>
+
+            <div class="card table-card">
+                <h3>Feature Transformation &amp; Weight Vector Breakdown</h3>
+                <p class="table-note">
+                    Features are standardized using training set statistics:
+                    Z<sub>i</sub> = (X<sub>i</sub> − μ<sub>i</sub>) / σ<sub>i</sub>. Intercept term X₀ = 1.0 is prepended.
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Feature Name</th>
+                                <th>Raw Value (Xᵢ)</th>
+                                <th>Mean (μᵢ)</th>
+                                <th>Std (σᵢ)</th>
+                                <th>Z-Score (Zᵢ)</th>
+                                <th>Weight (Wᵢ)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if features %}
+                                {% for f in features %}
+                                <tr>
+                                    <td>{{ f.name }}</td>
+                                    <td>{{ f.raw }}</td>
+                                    <td>{{ f.mean }}</td>
+                                    <td>{{ f.std }}</td>
+                                    <td>{{ f.zscore }}</td>
+                                    <td>{{ f.weight }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td>x₀ Intercept</td>
+                                    <td>1.00</td>
+                                    <td>—</td>
+                                    <td>—</td>
+                                    <td>1.000</td>
+                                    <td>{{ intercept_weight|default('6890.57') }}</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    </form>
+</div>
+
+<script>
+function updateHour(value) {
+    document.getElementById("hourValue").innerText = value;
+    drawChart(Number(value));
+}
+function updateValue(elementId, value, decimals) {
+    document.getElementById(elementId).innerText = Number(value).toFixed(decimals);
+}
+
+// Tabs — also keep the "Model Configuration" card in sync with the active tab
+document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        const isSetB = btn.dataset.tab === "B";
+        document.getElementById("configSet").innerText = isSetB ? "Set B" : "Set A";
+        document.getElementById("configTag").innerText = isSetB ? "Public" : "On-Site";
+        document.getElementById("configSub").innerText = isSetB
+            ? "Z-Score Standardized"
+            : "Sensor Calibrated";
+    });
+});
+
+// Format big kW / MW numbers with thousands separators (10279860.63 -> 10,279,860.63)
+function formatReadout(id, decimals) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const raw = Number(el.dataset.raw);
+    if (Number.isFinite(raw)) {
+        el.innerText = raw.toLocaleString(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+}
+formatReadout("predictedKw", 2);
+formatReadout("predictedMw", 2);
+
+// Reference scenario presets — tweak the values to match your dataset
+const presets = {
+    noon:     { hour: 12, sw_radiation: 950, temp_2m: 38, cloud_cover: 2 },
+    overcast: { hour: 13, sw_radiation: 220, temp_2m: 24, cloud_cover: 85 },
+    morning:  { hour: 8,  sw_radiation: 310, temp_2m: 22, cloud_cover: 20 },
+    night:    { hour: 22, sw_radiation: 0,   temp_2m: 18, cloud_cover: 10 }
+};
+document.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+        const p = presets[chip.dataset.preset];
+        document.getElementById("hour").value = p.hour;
+        document.getElementById("sw_radiation").value = p.sw_radiation;
+        document.getElementById("temp_2m").value = p.temp_2m;
+        document.getElementById("cloud_cover").value = p.cloud_cover;
+        updateHour(p.hour);
+        updateValue("radiationValue", p.sw_radiation, 0);
+        updateValue("tempValue", p.temp_2m, 1);
+        updateValue("cloudValue", p.cloud_cover, 0);
+    });
+});
+
+// Simple canvas line chart — no external library needed
+function drawChart(selectedHour) {
+    const canvas = document.getElementById("diurnalChart");
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width = canvas.clientWidth;
+    const h = canvas.height = 160;
+    ctx.clearRect(0, 0, w, h);
+
+    // A simple bell-shaped diurnal curve (peak around noon) — replace with real model output if you have it
+    const points = [];
+    for (let hour = 0; hour <= 23; hour++) {
+        const val = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
+        points.push(val);
+    }
+    const max = Math.max(...points) || 1;
+    const padding = 10;
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#2563eb";
+    ctx.lineWidth = 2;
+    points.forEach((v, i) => {
+        const x = padding + (i / 23) * (w - padding * 2);
+        const y = h - padding - (v / max) * (h - padding * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Selected hour cursor
+    const sx = padding + (selectedHour / 23) * (w - padding * 2);
+    const sv = Math.max(0, Math.sin(((selectedHour - 6) / 12) * Math.PI));
+    const sy = h - padding - (sv / max) * (h - padding * 2);
+    ctx.beginPath();
+    ctx.strokeStyle = "#f59e0b";
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(sx, padding);
+    ctx.lineTo(sx, h - padding);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.fillStyle = "#f59e0b";
+    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+window.addEventListener("load", () => drawChart(Number(document.getElementById("hour").value)));
+window.addEventListener("resize", () => drawChart(Number(document.getElementById("hour").value)));
+</script>
+
+</body>
+</html>
