@@ -22,18 +22,17 @@ The trained model is integrated into a lightweight Flask web application that pr
 ## Project Structure
 
 ```text
-C:\Users\Mr_Robo\mlproject\
-
+ML-Based-Solar-Power-Predictor-AC-/
 ├── app.py
-├── templates/
-│   └── index.html
-├── static/
-│   └── style.css
-├── results/
-│   ├── theta_B.npy
-│   ├── scaler_B_mean.npy
-│   └── scaler_B_std.npy
+├── index.html
+├── style.css
+├── theta_B.npy
+├── scaler_B_mean.npy
+├── scaler_B_std.npy
 ├── ML_Project.ipynb
+├── view_npy.py
+├── solar_power_prediction_blog (1).md
+├── assign task.pdf
 └── README.md
 ```
 
@@ -43,29 +42,41 @@ C:\Users\Mr_Robo\mlproject\
 
 Main Flask application containing the web routes and machine learning inference logic.
 
-### templates/index.html
+### index.html
 
 Jinja2 HTML template containing the main solar power prediction dashboard.
 
-### static/style.css
+### style.css
 
 Custom CSS file containing the Glassmorphism interface and dashboard styling.
 
-### results/theta_B.npy
+### theta_B.npy
 
 Contains the trained regression model weights.
 
-### results/scaler_B_mean.npy
+### scaler_B_mean.npy
 
 Contains the feature mean values used for Z-score normalization.
 
-### results/scaler_B_std.npy
+### scaler_B_std.npy
 
 Contains the feature standard deviation values used for Z-score normalization.
 
 ### ML_Project.ipynb
 
 Jupyter Notebook containing data analysis, preprocessing, model training, evaluation, and generation of the trained model parameters.
+
+### view_npy.py
+
+Helper script to inspect the contents of the `.npy` model files.
+
+### solar_power_prediction_blog (1).md
+
+Companion blog write-up describing the project.
+
+### assign task.pdf
+
+Project assignment/task document.
 
 ## Tech Stack
 
@@ -85,7 +96,7 @@ Jupyter Notebook containing data analysis, preprocessing, model training, evalua
 ### 1. Navigate to the Project Directory
 
 ```bash
-cd C:\Users\Mr_Robo\mlproject
+cd ML-Based-Solar-Power-Predictor-AC-
 ```
 
 ### 2. Create a Virtual Environment
@@ -102,6 +113,12 @@ For Windows:
 venv\Scripts\activate
 ```
 
+For macOS/Linux:
+
+```bash
+source venv/bin/activate
+```
+
 ### 4. Install Dependencies
 
 ```bash
@@ -110,12 +127,12 @@ pip install flask numpy joblib
 
 ### 5. Verify Model Files
 
-Make sure the following files exist inside the `results` directory:
+Make sure the following files exist in the project root directory:
 
 ```text
-results/theta_B.npy
-results/scaler_B_mean.npy
-results/scaler_B_std.npy
+theta_B.npy
+scaler_B_mean.npy
+scaler_B_std.npy
 ```
 
 If these files are missing, open `ML_Project.ipynb` and run the training and model-export cells.
