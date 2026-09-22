@@ -24,11 +24,11 @@ The trained model is integrated into a lightweight Flask web application that pr
 ```text
 ML-Based-Solar-Power-Predictor-AC-/
 ├── app.py
-├── index.html
-├── style.css
-├── theta_B.npy
-├── scaler_B_mean.npy
-├── scaler_B_std.npy
+├── templates/index.html
+├── static/style.css
+├── results/theta_B.npy
+├── results/scaler_B_mean.npy
+├── results/scaler_B_std.npy
 ├── ML_Project.ipynb
 ├── view_npy.py
 ├── solar_power_prediction_blog (1).md
@@ -127,7 +127,7 @@ pip install flask numpy joblib
 
 ### 5. Verify Model Files
 
-Make sure the following files exist in the project root directory:
+Make sure the following files exist in the `results/` directory:
 
 ```text
 theta_B.npy
@@ -150,6 +150,8 @@ After starting Flask, open the following address in your web browser:
 ```text
 http://127.0.0.1:5000
 ```
+
+On Replit, run the **Start application** workflow and use the webview instead. Replit dependencies are recorded in `pyproject.toml`.
 
 ## Using the Dashboard
 
